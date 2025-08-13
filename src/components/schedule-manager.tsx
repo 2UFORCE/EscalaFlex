@@ -358,9 +358,7 @@ function EditDayDialog({ dayInfo, onSave }: { dayInfo: DayInfo; onSave: (date: D
   );
 }
 
-import { MonthlySummary } from '@/components/monthly-summary';
 
-// Sub-component: AI Pattern Optimizer
 function PatternOptimizerDialog({ pattern, overrides }: { pattern: ShiftPattern, overrides: Overrides }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
