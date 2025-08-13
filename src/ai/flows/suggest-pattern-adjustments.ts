@@ -98,4 +98,4 @@ const suggestPatternAdjustmentsFlow = ai.defineFlow(
       newPattern: output?.newPattern || undefined,
       conflictResolutionOptions: output?.conflictResolutionOptions || [],
     };
-);
+  });
