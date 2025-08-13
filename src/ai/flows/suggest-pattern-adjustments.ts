@@ -93,6 +93,10 @@ const suggestPatternAdjustmentsFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
-  }
+    return {
+      suggestedAdjustments: output?.suggestedAdjustments || '',
+      optimizationRationale: output?.optimizationRationale || '',
+      newPattern: output?.newPattern || undefined,
+      conflictResolutionOptions: output?.conflictResolutionOptions || [],
+    };
 );

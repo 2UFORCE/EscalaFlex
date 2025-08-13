@@ -200,7 +200,7 @@ function ScheduleDashboard({ pattern, onReset, setPattern }: { pattern: ShiftPat
           <AppLogo className="h-7 w-7 text-primary" />
           <h1 className="text-xl font-bold font-headline">EscalaFlex</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
            <PatternOptimizerDialog pattern={pattern} overrides={overrides} onApplyPattern={setPattern} />
           <AddVacationDialog onSaveVacation={handleSaveOverride} />
           <DropdownMenu>
@@ -391,7 +391,7 @@ function AddVacationDialog({ onSaveVacation }: { onSaveVacation: (date: Date, ov
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
+        <Button variant="outline" size="sm">
           <Plane className="mr-2 h-4 w-4" />
           Adicionar Férias
         </Button>
