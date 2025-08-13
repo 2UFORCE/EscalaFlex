@@ -28,6 +28,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from "@/hooks/use-toast";
+import { MonthlySummary } from '@/components/monthly-summary';
 
 
 // Main Component
@@ -357,33 +358,7 @@ function EditDayDialog({ dayInfo, onSave }: { dayInfo: DayInfo; onSave: (date: D
   );
 }
 
-// Sub-component: Monthly Summary
-function MonthlySummary({ scheduleDays }: { scheduleDays: DayInfo[] }) {
-  const summary = useMemo(() => {
-    return scheduleDays.reduce((acc, day) => {
-      if (day.type !== 'Empty') {
-        acc[day.type] = (acc[day.type] || 0) + 1;
-      }
-      return acc;
-    }, {} as Record<ShiftType, number>);
-  }, [scheduleDays]);
-
-  return (
-    <Card>
-      <CardHeader><CardTitle>Resumo do Mês</CardTitle></CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Object.entries(summary).map(([type, count]) => (
-            <div key={type} className="p-4 bg-muted/50 rounded-lg">
-              <div className="text-sm text-muted-foreground">{type}</div>
-              <div className="text-2xl font-bold">{count}</div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+import { MonthlySummary } from '@/components/monthly-summary';
 
 // Sub-component: AI Pattern Optimizer
 function PatternOptimizerDialog({ pattern, overrides }: { pattern: ShiftPattern, overrides: Overrides }) {
@@ -428,7 +403,11 @@ function PatternOptimizerDialog({ pattern, overrides }: { pattern: ShiftPattern,
       setResult(res);
     } catch (e) {
       console.error(e);
-      setError('Ocorreu um erro ao contatar a IA. Tente novamente mais tarde.');
+      let errorMessage = 'Ocorreu um erro ao contatar a IA. Tente novamente mais tarde.';
+      if (e instanceof Error) {
+        errorMessage = e.message;
+      }
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

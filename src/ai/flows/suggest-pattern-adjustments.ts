@@ -52,8 +52,9 @@ Original Schedule Pattern: {{{originalSchedulePattern}}}
 Edited Schedule: {{{editedSchedule}}}
 User Preferences: {{{userPreferences}}}
 
-Suggest adjustments to the original schedule pattern, and explain the rationale for these adjustments, focusing on how they minimize disruptions and better fit the user's needs.
+Suggest adjustments to the original schedule pattern, and explain the rationale for these adjustments, focusing on how they minimize disruptions and better fit the user's needs. Respond in Brazilian Portuguese.
 `,config: {
+
     safetySettings: [
       {
         category: 'HARM_CATEGORY_HATE_SPEECH',
