@@ -11,7 +11,7 @@ describe('MonthlySummary', () => {
       { date: new Date(), type: SHIFT_TYPES.OFF, isOverride: false, isToday: false, isCurrentMonth: true },
       { date: new Date(), type: SHIFT_TYPES.OFF, isOverride: false, isToday: false, isCurrentMonth: true },
       { date: new Date(), type: SHIFT_TYPES.OFF, isOverride: false, isToday: false, isCurrentMonth: true },
-      { date: new Date(), type: SHIFT_TYPES.VACATION, isOverride: true, isToday: false, isCurrentMonth: true },
+      { date: new Date(), type: SHIFT_TYPES.SWAP, isOverride: true, isToday: false, isCurrentMonth: true },
     ];
 
     render(<MonthlySummary scheduleDays={scheduleDays} />);
@@ -22,7 +22,7 @@ describe('MonthlySummary', () => {
     expect(screen.getByText('Folga')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
 
-    expect(screen.getByText('Férias')).toBeInTheDocument();
+    expect(screen.getByText('Troca')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
   });
 

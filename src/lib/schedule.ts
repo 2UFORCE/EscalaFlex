@@ -9,6 +9,7 @@ export type ShiftPattern = {
 export const SHIFT_TYPES = {
   WORK: 'Trabalho',
   OFF: 'Folga',
+  SWAP: 'Troca',
   VACATION: 'Férias',
   OTHER: 'Outro',
 } as const;

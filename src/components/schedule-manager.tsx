@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameDay, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar as CalendarIcon, Briefcase, Home, Plane, Sparkles, MoreVertical, Trash2, Pencil, Bot } from 'lucide-react';
 
@@ -51,7 +51,7 @@ export function ScheduleManager() {
     return <SchedulePatternForm onSave={handleSavePattern} />;
   }
 
-  return <ScheduleDashboard pattern={pattern} onReset={handleResetApp} />;
+  return <ScheduleDashboard pattern={pattern} onReset={handleResetApp} setPattern={setPattern} />;
 }
 
 // Sub-component: Initial Setup Form
@@ -133,7 +133,7 @@ function SchedulePatternForm({ onSave }: { onSave: (pattern: ShiftPattern) => vo
 }
 
 // Sub-component: Main Dashboard
-function ScheduleDashboard({ pattern, onReset }: { pattern: ShiftPattern; onReset: () => void }) {
+function ScheduleDashboard({ pattern, onReset, setPattern }: { pattern: ShiftPattern; onReset: () => void; setPattern: (pattern: ShiftPattern) => void }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [overrides, setOverrides] = useLocalStorage<Overrides>('escala-flex-overrides', {});
 
@@ -162,14 +162,14 @@ function ScheduleDashboard({ pattern, onReset }: { pattern: ShiftPattern; onRese
   const shiftIcons: Record<ShiftType, React.ReactNode> = {
     [SHIFT_TYPES.WORK]: <Briefcase className="h-4 w-4" />,
     [SHIFT_TYPES.OFF]: <Home className="h-4 w-4" />,
-    [SHIFT_TYPES.VACATION]: <Plane className="h-4 w-4" />,
+    [SHIFT_TYPES.SWAP]: <Plane className="h-4 w-4" />,
     [SHIFT_TYPES.OTHER]: <Sparkles className="h-4 w-4" />,
   };
   
   const shiftColors: Record<ShiftType, string> = {
     [SHIFT_TYPES.WORK]: 'bg-primary/20 text-primary-foreground',
     [SHIFT_TYPES.OFF]: 'bg-secondary',
-    [SHIFT_TYPES.VACATION]: 'bg-accent/30 text-accent-foreground',
+    [SHIFT_TYPES.SWAP]: 'bg-accent/30 text-accent-foreground',
     [SHIFT_TYPES.OTHER]: 'bg-muted',
   };
 
@@ -201,7 +201,8 @@ function ScheduleDashboard({ pattern, onReset }: { pattern: ShiftPattern; onRese
           <h1 className="text-xl font-bold font-headline">EscalaFlex</h1>
         </div>
         <div className="flex items-center gap-2">
-           <PatternOptimizerDialog pattern={pattern} overrides={overrides} />
+           <PatternOptimizerDialog pattern={pattern} overrides={overrides} onApplyPattern={setPattern} />
+          <AddVacationDialog onSaveVacation={handleSaveOverride} />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
@@ -250,14 +251,14 @@ function DayCell({ dayInfo, onSaveOverride }: { dayInfo?: DayInfo; onSaveOverrid
   const shiftClasses = {
     [SHIFT_TYPES.WORK]: 'bg-sky-200 text-sky-800',
     [SHIFT_TYPES.OFF]: 'bg-gray-200 text-gray-700',
-    [SHIFT_TYPES.VACATION]: 'bg-green-200 text-green-800',
+    [SHIFT_TYPES.SWAP]: 'bg-green-200 text-green-800',
     [SHIFT_TYPES.OTHER]: 'bg-purple-200 text-purple-800',
   };
 
   const shiftIcons = {
     [SHIFT_TYPES.WORK]: <Briefcase className="w-3 h-3" />,
     [SHIFT_TYPES.OFF]: <Home className="w-3 h-3" />,
-    [SHIFT_TYPES.VACATION]: <Plane className="w-3 h-3" />,
+    [SHIFT_TYPES.SWAP]: <Plane className="w-3 h-3" />,
     [SHIFT_TYPES.OTHER]: <Sparkles className="w-3 h-3" />,
   };
 
@@ -359,11 +360,102 @@ function EditDayDialog({ dayInfo, onSave }: { dayInfo: DayInfo; onSave: (date: D
 }
 
 
-function PatternOptimizerDialog({ pattern, overrides }: { pattern: ShiftPattern, overrides: Overrides }) {
+
+// Sub-component: Add Vacation Dialog
+const vacationFormSchema = z.object({
+  startDate: z.date({ required_error: "A data de início é obrigatória." }),
+  endDate: z.date({ required_error: "A data de término é obrigatória." }),
+}).refine((data) => data.endDate >= data.startDate, {
+  message: "A data de término não pode ser anterior à data de início.",
+  path: ["endDate"],
+});
+
+function AddVacationDialog({ onSaveVacation }: { onSaveVacation: (date: Date, override: ShiftOverride | null) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<z.infer<typeof vacationFormSchema>>({
+    resolver: zodResolver(vacationFormSchema),
+  });
+
+  const onSubmit = (values: z.infer<typeof vacationFormSchema>) => {
+    let currentDate = values.startDate;
+    while (currentDate <= values.endDate) {
+      onSaveVacation(currentDate, { type: SHIFT_TYPES.VACATION, note: "Férias" });
+      currentDate = addDays(currentDate, 1);
+    }
+    toast({ title: "Férias adicionadas!", description: `O período de férias de ${format(values.startDate, "PPP", { locale: ptBR })} a ${format(values.endDate, "PPP", { locale: ptBR })} foi salvo.` });
+    setIsOpen(false);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <Plane className="mr-2 h-4 w-4" />
+          Adicionar Férias
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Adicionar Período de Férias</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField control={form.control} name="startDate" render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Data de Início</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                        {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={ptBR} />
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="endDate" render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Data de Término</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                        {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={ptBR} />
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <DialogFooter>
+              <Button type="submit">Adicionar Férias</Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PatternOptimizerDialog({ pattern, overrides, onApplyPattern }: { pattern: ShiftPattern, overrides: Overrides, onApplyPattern: (newPattern: ShiftPattern) => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<SuggestPatternAdjustmentsOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [conflictDescription, setConflictDescription] = useState<string | null>(null);
   const { toast } = useToast();
   const isOnline = useOnlineStatus();
 
@@ -397,7 +489,7 @@ function PatternOptimizerDialog({ pattern, overrides }: { pattern: ShiftPattern,
     }
 
     try {
-      const res = await suggestPatternAdjustments({ originalSchedulePattern, editedSchedule });
+      const res = await suggestPatternAdjustments({ originalSchedulePattern, editedSchedule, conflictDescription });
       setResult(res);
     } catch (e) {
       console.error(e);
@@ -459,6 +551,21 @@ function PatternOptimizerDialog({ pattern, overrides }: { pattern: ShiftPattern,
                     <h3 className="font-semibold text-foreground">Justificativa</h3>
                     <p className="text-sm text-muted-foreground whitespace-pre-wrap">{result.optimizationRationale}</p>
                 </div>
+                {result.conflictResolutionOptions && result.conflictResolutionOptions.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-foreground">Opções de Resolução de Conflitos</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {result.conflictResolutionOptions.map((option, index) => (
+                        <Button key={index} variant="outline" onClick={() => {
+                          setConflictDescription(option);
+                          handleOptimization();
+                        }}>
+                          {option}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
             </div>
           ) : (
              <div className="text-center text-muted-foreground p-4">
@@ -467,8 +574,15 @@ function PatternOptimizerDialog({ pattern, overrides }: { pattern: ShiftPattern,
           )}
         </div>
         <DialogFooter>
-          {result ? (
-            <Button onClick={() => { setResult(null); setError(null); }}>Analisar Novamente</Button>
+          {result && result.newPattern ? (
+            <div className="flex gap-2">
+              <Button onClick={() => onApplyPattern({ ...pattern, ...result.newPattern! })}>
+                Aplicar Novo Padrão
+              </Button>
+              <Button onClick={() => { setResult(null); setError(null); setConflictDescription(null); }}>Analisar Novamente</Button>
+            </div>
+          ) : result ? (
+            <Button onClick={() => { setResult(null); setError(null); setConflictDescription(null); }}>Analisar Novamente</Button>
           ) : (
             <Button onClick={handleOptimization} disabled={isLoading || !isOnline}>
               {isLoading ? 'Analisando...' : 'Sugerir Novo Padrão'}
