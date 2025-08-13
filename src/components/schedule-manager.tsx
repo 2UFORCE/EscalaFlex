@@ -9,6 +9,7 @@ import { ptBR } from 'date-fns/locale';
 import { Calendar as CalendarIcon, Briefcase, Home, Plane, Sparkles, MoreVertical, Trash2, Pencil, Bot } from 'lucide-react';
 
 import useLocalStorage from '@/hooks/use-local-storage';
+import { useOnlineStatus } from '@/hooks/use-online-status';
 import { type ShiftPattern, type Overrides, type ShiftType, SHIFT_TYPES, getDayInfo, type DayInfo } from '@/lib/schedule';
 import { cn } from '@/lib/utils';
 import { suggestPatternAdjustments, type SuggestPatternAdjustmentsOutput } from '@/ai/flows/suggest-pattern-adjustments';
@@ -25,6 +26,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -390,8 +392,18 @@ function PatternOptimizerDialog({ pattern, overrides }: { pattern: ShiftPattern,
   const [result, setResult] = useState<SuggestPatternAdjustmentsOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const isOnline = useOnlineStatus();
 
   const handleOptimization = async () => {
+    if (!isOnline) {
+      toast({
+        variant: "destructive",
+        title: "Você está offline",
+        description: "A otimização com IA requer uma conexão com a internet.",
+      });
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -422,13 +434,28 @@ function PatternOptimizerDialog({ pattern, overrides }: { pattern: ShiftPattern,
     }
   };
 
+  const triggerButton = (
+    <Button variant="outline" disabled={!isOnline}>
+      <Bot className="mr-2 h-4 w-4" />
+      Otimizar Padrão
+    </Button>
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <Bot className="mr-2 h-4 w-4" />
-          Otimizar Padrão
-        </Button>
+        {isOnline ? (
+          triggerButton
+        ) : (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>{triggerButton}</TooltipTrigger>
+              <TooltipContent>
+                <p>Função de IA requer conexão com a internet.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
@@ -466,7 +493,7 @@ function PatternOptimizerDialog({ pattern, overrides }: { pattern: ShiftPattern,
           {result ? (
             <Button onClick={() => { setResult(null); setError(null); }}>Analisar Novamente</Button>
           ) : (
-            <Button onClick={handleOptimization} disabled={isLoading}>
+            <Button onClick={handleOptimization} disabled={isLoading || !isOnline}>
               {isLoading ? 'Analisando...' : 'Sugerir Novo Padrão'}
             </Button>
           )}
