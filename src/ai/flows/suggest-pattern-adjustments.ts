@@ -40,6 +40,7 @@ export async function suggestPatternAdjustments(
   input: SuggestPatternAdjustmentsInput
 ): Promise<SuggestPatternAdjustmentsOutput> {
   return suggestPatternAdjustmentsFlow(input);
+}
 
 const prompt = ai.definePrompt({
   name: 'suggestPatternAdjustmentsPrompt',
@@ -98,4 +99,5 @@ const suggestPatternAdjustmentsFlow = ai.defineFlow(
       newPattern: output?.newPattern || undefined,
       conflictResolutionOptions: output?.conflictResolutionOptions || [],
     };
-  });
+  }
+);
