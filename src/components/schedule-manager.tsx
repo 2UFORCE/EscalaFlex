@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, isSameDay, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Calendar as CalendarIcon, Briefcase, Home, Plane, Sparkles, MoreVertical, Trash2, Pencil, Bot } from 'lucide-react';
+import { Calendar as CalendarIcon, Briefcase, Home, Plane, Sparkles, MoreVertical, Trash2, Pencil, Bot, Repeat } from 'lucide-react';
 
 import useLocalStorage from '@/hooks/use-local-storage';
 import { useOnlineStatus } from '@/hooks/use-online-status';
@@ -14,6 +14,8 @@ import { type ShiftPattern, type Overrides, type ShiftType, SHIFT_TYPES, getDayI
 import { cn } from '@/lib/utils';
 import { suggestPatternAdjustments, type SuggestPatternAdjustmentsOutput } from '@/ai/flows/suggest-pattern-adjustments';
 import { AppLogo } from '@/components/icons';
+import { SHIFT_CONFIG } from '@/lib/config';
+import { LOCAL_STORAGE_PATTERN_KEY, LOCAL_STORAGE_OVERRIDES_KEY } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -33,7 +35,7 @@ import { MonthlySummary } from '@/components/monthly-summary';
 
 // Main Component
 export function ScheduleManager() {
-  const [pattern, setPattern] = useLocalStorage<ShiftPattern | null>('escala-flex-pattern', null);
+  const [pattern, setPattern] = useLocalStorage<ShiftPattern | null>(LOCAL_STORAGE_PATTERN_KEY, null);
 
   const handleSavePattern = (newPattern: ShiftPattern) => {
     setPattern(newPattern);
@@ -41,8 +43,8 @@ export function ScheduleManager() {
 
   const handleResetApp = () => {
     if (window.confirm("Você tem certeza que quer apagar todos os dados? Esta ação não pode ser desfeita.")) {
-      localStorage.removeItem('escala-flex-pattern');
-      localStorage.removeItem('escala-flex-overrides');
+      localStorage.removeItem(LOCAL_STORAGE_PATTERN_KEY);
+      localStorage.removeItem(LOCAL_STORAGE_OVERRIDES_KEY);
       setPattern(null);
     }
   };
@@ -135,7 +137,7 @@ function SchedulePatternForm({ onSave }: { onSave: (pattern: ShiftPattern) => vo
 // Sub-component: Main Dashboard
 function ScheduleDashboard({ pattern, onReset, setPattern }: { pattern: ShiftPattern; onReset: () => void; setPattern: (pattern: ShiftPattern) => void }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [overrides, setOverrides] = useLocalStorage<Overrides>('escala-flex-overrides', {});
+  const [overrides, setOverrides] = useLocalStorage<Overrides>(LOCAL_STORAGE_OVERRIDES_KEY, {});
 
   const scheduleDays = useMemo(() => {
     const start = startOfMonth(currentMonth);
@@ -157,40 +159,6 @@ function ScheduleDashboard({ pattern, onReset, setPattern }: { pattern: ShiftPat
       }
       return newOverrides;
     });
-  };
-
-  const shiftIcons: Record<ShiftType, React.ReactNode> = {
-    [SHIFT_TYPES.WORK]: <Briefcase className="h-4 w-4" />,
-    [SHIFT_TYPES.OFF]: <Home className="h-4 w-4" />,
-    [SHIFT_TYPES.SWAP]: <Plane className="h-4 w-4" />,
-    [SHIFT_TYPES.OTHER]: <Sparkles className="h-4 w-4" />,
-  };
-  
-  const shiftColors: Record<ShiftType, string> = {
-    [SHIFT_TYPES.WORK]: 'bg-primary/20 text-primary-foreground',
-    [SHIFT_TYPES.OFF]: 'bg-secondary',
-    [SHIFT_TYPES.SWAP]: 'bg-accent/30 text-accent-foreground',
-    [SHIFT_TYPES.OTHER]: 'bg-muted',
-  };
-
-  const modifiers = {
-    today: new Date(),
-    ...scheduleDays.reduce((acc, day) => {
-      if (day.type !== 'Empty') {
-        const key = day.type.toLowerCase().replace(' ', '-');
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(day.date);
-      }
-      return acc;
-    }, {} as Record<string, Date[]>),
-  };
-  
-  const modifiersClassNames = {
-    today: 'border-2 border-accent rounded-full',
-    trabalho: 'bg-primary/20',
-    folga: 'bg-indigo-200',
-    férias: 'bg-accent/30',
-    outro: 'bg-muted',
   };
 
   return (
@@ -248,20 +216,6 @@ function ScheduleDashboard({ pattern, onReset, setPattern }: { pattern: ShiftPat
 function DayCell({ dayInfo, onSaveOverride }: { dayInfo?: DayInfo; onSaveOverride: (date: Date, override: ShiftOverride | null) => void }) {
   if (!dayInfo) return <div />;
 
-  const shiftClasses = {
-    [SHIFT_TYPES.WORK]: 'bg-sky-200 text-sky-800',
-    [SHIFT_TYPES.OFF]: 'bg-gray-200 text-gray-700',
-    [SHIFT_TYPES.SWAP]: 'bg-green-200 text-green-800',
-    [SHIFT_TYPES.OTHER]: 'bg-purple-200 text-purple-800',
-  };
-
-  const shiftIcons = {
-    [SHIFT_TYPES.WORK]: <Briefcase className="w-3 h-3" />,
-    [SHIFT_TYPES.OFF]: <Home className="w-3 h-3" />,
-    [SHIFT_TYPES.SWAP]: <Plane className="w-3 h-3" />,
-    [SHIFT_TYPES.OTHER]: <Sparkles className="w-3 h-3" />,
-  };
-
   const dayNumber = format(dayInfo.date, 'd');
   
   return (
@@ -275,8 +229,8 @@ function DayCell({ dayInfo, onSaveOverride }: { dayInfo?: DayInfo; onSaveOverrid
         >
           <time dateTime={format(dayInfo.date, 'yyyy-MM-dd')} className="text-sm font-medium">{dayNumber}</time>
           {dayInfo.type !== 'Empty' && (
-            <div className={cn("mt-1 text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1", shiftClasses[dayInfo.type])}>
-              {shiftIcons[dayInfo.type]}
+            <div className={cn("mt-1 text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1", SHIFT_CONFIG[dayInfo.type].className)}>
+              {React.createElement(SHIFT_CONFIG[dayInfo.type].icon, { className: "w-3 h-3" })}
               <span className="hidden sm:inline">{dayInfo.type}</span>
             </div>
           )}
@@ -297,9 +251,10 @@ const editDaySchema = z.object({
 
 function EditDayDialog({ dayInfo, onSave }: { dayInfo: DayInfo; onSave: (date: Date, override: ShiftOverride | null) => void }) {
   const { toast } = useToast();
+  const defaultType = dayInfo.type === 'Empty' ? SHIFT_TYPES.WORK : dayInfo.type;
   const form = useForm<z.infer<typeof editDaySchema>>({
     resolver: zodResolver(editDaySchema),
-    defaultValues: { type: dayInfo.type as ShiftType, note: dayInfo.note },
+    defaultValues: { type: defaultType, note: dayInfo.note },
   });
 
   const onSubmit = (values: z.infer<typeof editDaySchema>) => {
